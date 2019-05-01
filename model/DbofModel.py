@@ -80,8 +80,3 @@ class DbofModel(nn.Module):
         prob = self.c_layer(activations)
 
         return prob
-
-feature = torch.Tensor(5,300,1024 + 128)
-
-net = DbofModel()
-s = net(feature)

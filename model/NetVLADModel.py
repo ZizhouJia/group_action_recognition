@@ -216,9 +216,3 @@ class LightVLAD(nn.Module):
         vlad = F.norm(vlad,dim=2,p=2)
 
         return vlad
-
-
-# feature = torch.Tensor(5,300,1024 + 128)
-
-# net = NetVLADModelLF()
-# s = net(feature)

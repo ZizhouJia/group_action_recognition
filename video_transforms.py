@@ -2,6 +2,7 @@
 import cv2
 import random
 import numpy as np
+import torch
 
 def crop(image,x1,y1,x2,y2):
     return image[:,y1:y2,x1:x2,:]
@@ -105,3 +106,21 @@ class random_rgb(object):
         frames[:,:,:,1]=frames[:,:,:,1]*value_g
         frames[:,:,:,2]=frames[:,:,:,2]*value_b
         return frames.astype(np.uint8)
+
+class to_tensor(object):
+    def __init__(self):
+        pass
+
+    def __call__(self):
+        frames=frames.astype(np.float32)/255
+        return torch.Tensor(frames)
+
+class normalize(object):
+    def __init__(self,mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+        self.mean=torch.Tensor(np.array(mean)).view(1,1,1,3)
+        self.std=torch.Tensor(np.array(std)).view(1,1,1,3)
+
+    def __call__(self,frames):
+        frames[:,:,:,:]=frames[:,:,:,:]-self.mean
+        frames[:,:,:,:]=frames[:,:,:,:]/self.std
+        return frames
