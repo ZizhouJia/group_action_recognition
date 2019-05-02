@@ -23,7 +23,7 @@ class KsDataset(torch.utils.data.Dataset):
         # img = Image.open(root + fn).convert('RGB')
         if self.transform is not None:
             frames = self.transform(frames)
-        return "0",frames, label
+        return frames, label
 
     def __len__(self):
         return len(self.imgs)

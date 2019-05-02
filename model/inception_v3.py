@@ -11,7 +11,7 @@ class inception_v3(nn.Module):
 
     def forward(self,x):
         items=self.base._modules.items()
-        for i range(0,len(items)-1):
+        for i in range(0,len(items)-1):
             x=items[i](x)
         if(self.pca_dir is not None):
             x=x-self.pca_mean
