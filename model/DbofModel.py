@@ -3,8 +3,8 @@ import torch.nn as nn
 import math
 from torch.nn.parameter import Parameter
 import torch.functional as F
-from video_level_models import MoeModel
-from util import *
+from .video_level_models import MoeModel
+from .util import *
 
 class DbofModel(nn.Module):
     def __init__(self,
@@ -69,7 +69,7 @@ class DbofModel(nn.Module):
         activations = activations.view(activations.shape[0],-1,self.max_frames,self.cluster_size)
 
         activations = FramePooling(activations,'max')
-        activations = torch.matmul(activations,self.hidden1_weights)
+        activations = torch.matmul(ctivations,self.hidden1_weights)
         if self.add_batch_norm:
             activations = self.bn3(activations)
         else:

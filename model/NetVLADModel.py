@@ -3,7 +3,7 @@ import torch.nn as nn
 import math
 from torch.nn.parameter import Parameter
 import torch.functional as F
-from video_level_models import MoeModel
+from .video_level_models import MoeModel
 
 import copy
 from torch.autograd import Variable
@@ -89,7 +89,6 @@ class NetVLADModelLF(nn.Module):
 
     def forward(self, reshaped_input):
         reshaped_input = self.bn1(reshaped_input)
-
         vlad_video = self.video_NetVLAD(reshaped_input[:,:,0:1024])
         vlad_audio = self.audio_NetVLAD(reshaped_input[:,:,1024:])
 

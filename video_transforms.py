@@ -4,7 +4,7 @@ import random
 import numpy as np
 import torch
 
-def crop(image,x1,y1,x2,y2):
+def crop(image,y1,y2,x1,x2):
     return image[:,y1:y2,x1:x2,:]
 
 class center_crop(object):
@@ -16,9 +16,9 @@ class center_crop(object):
         width=frames.shape[2]
         #手机屏幕自适配
         if(height>width):
-            return crop(frames,(height-width)/2,(height-width)/2+width,0,width)
+            return crop(frames,int((height-width)/2),int((height-width)/2)+width,0,width)
         if(width>height):
-            return crop(frames,0,height,(width-hegith)/2,(width-height)/2+height)
+            return crop(frames,0,height,int((width-height)/2),int((width-height)/2)+height)
 
 class resize(object):
     def __init__(self,size):
@@ -28,7 +28,7 @@ class resize(object):
         resized_frames=np.zeros((frames.shape[0],self.size,self.size,3)).astype(np.uint8)
         for i in range(0,frames.shape[0]):
             image=frames[i]
-            image=cv2.resize(image,(self.size,self.size))
+            image=cv2.resize(image,dsize=(self.size,self.size))
             resized_frames[i,:,:,:]=image
         return resized_frames
 
@@ -111,14 +111,14 @@ class to_tensor(object):
     def __init__(self):
         pass
 
-    def __call__(self):
+    def __call__(self,frames):
         frames=frames.astype(np.float32)/255
-        return torch.Tensor(frames)
+        return torch.Tensor(frames).permute((0,3,1,2))
 
 class normalize(object):
     def __init__(self,mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
-        self.mean=torch.Tensor(np.array(mean)).view(1,1,1,3)
-        self.std=torch.Tensor(np.array(std)).view(1,1,1,3)
+        self.mean=torch.Tensor(np.array(mean)).view(1,3,1,1)
+        self.std=torch.Tensor(np.array(std)).view(1,3,1,1)
 
     def __call__(self,frames):
         frames[:,:,:,:]=frames[:,:,:,:]-self.mean

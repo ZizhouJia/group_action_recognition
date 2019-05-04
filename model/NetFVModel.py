@@ -3,8 +3,8 @@ import torch.nn as nn
 import math
 from torch.nn.parameter import Parameter
 import torch.functional as F
-from video_level_models import MoeModel
-from util import *
+from .video_level_models import MoeModel
+from .util import *
 
 class NetFV(nn.Module):
 
@@ -183,8 +183,3 @@ class NetFVModellLF(nn.Module):
 
         prob = self.c_layer(activaiton)
         return prob
-
-feature = torch.ones((5,300,1024 + 128))
-
-net = NetFVModellLF()
-s = net(feature)
