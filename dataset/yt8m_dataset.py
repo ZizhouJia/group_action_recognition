@@ -13,7 +13,7 @@ import itertools, datetime
 class yt8mDataset(torch.utils.data.Dataset):
     def __init__(self, transform=None,data_type = ''):
         super(yt8mDataset, self).__init__()
-        data_dir = '/home/hyw/youtube8/data/frame/' + data_type
+        data_dir = '/mnt/mmu/liuchang/hywData/yt8m/frame/' + data_type
         self.data_list = os.listdir(data_dir)
         self.range_list = []
 
