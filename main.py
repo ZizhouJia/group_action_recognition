@@ -11,6 +11,7 @@ import h5py
 import numpy as np
 import copy
 import model_utils.dataset as dl
+import multiprocessing
 
 video_t=transforms.Compose([
                 video_transforms.center_crop(),
@@ -30,7 +31,8 @@ def generate_feature_dataset(batch_size,path):
     id=f["image_id"]
     label=f["label"]
     indexs=np.arrange(features.shape[0])
-    np.ramdom.shuffle(indexs)
+    np.random.seed(666)
+    np.random.shuffle(indexs)
     features[:,:,:,:]=features[index]
     id[:]=features[index]
     label[:]=label[index]
