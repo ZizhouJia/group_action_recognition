@@ -3,11 +3,11 @@ import torch.nn as nn
 import math
 from torch.nn.parameter import Parameter
 import torch.functional as F
-from video_level_models import MoeModel
+from .video_level_models import MoeModel
 from tensorflow.python import pywrap_tensorflow as pt
 import copy
 from torch.autograd import Variable
-from util import *
+from .util import *
 
 class init_NetVLAD():
     def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001'):
