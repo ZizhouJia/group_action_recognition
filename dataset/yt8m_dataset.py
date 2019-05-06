@@ -1,7 +1,7 @@
 import torch
 import os
 import h5py
-import readers
+from  . import readers
 import numpy
 import tensorflow as tf
 import torch.utils.data

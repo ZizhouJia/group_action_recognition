@@ -18,7 +18,7 @@
 """Provides readers configured for different datasets."""
 
 import tensorflow as tf
-import utils
+from . import util as utils
 
 from tensorflow import logging
 def resize_axis(tensor, axis, new_size, fill_value=0):
