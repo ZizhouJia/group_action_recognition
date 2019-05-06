@@ -10,7 +10,7 @@ from torch.autograd import Variable
 from util import *
 
 class init_NetVLAD():
-    def __init__(self,model_path = '/home/hyw/y8_willow/gatednetvladLF-256k-1024-80-0002-300iter-norelu-basic-gatedmoe/model.ckpt-310001'):
+    def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001'):
         self.reader = pt.NewCheckpointReader(model_path)
         # value = reader.get_tensor("tensor_name")
 

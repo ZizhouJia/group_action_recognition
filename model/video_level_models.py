@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import math
 from torch.nn.parameter import Parameter
+from util import *
 import torch.functional as F
 
 class MoeModel(nn.Module):
@@ -53,7 +54,8 @@ class MoeModel(nn.Module):
                 self.gating_weights = Parameter(torch.Tensor(self.input_size, self.vocab_size))
                 torch.nn.init.normal(self.gating_weights, 0, 1 / math.sqrt(vocab_size))
 
-        self.bn_gate = nn.BatchNorm1d(1)
+        # self.bn_gate = nn.BatchNorm1d(1)
+        self.bn_gate = bn_layer(vocab_size)
         self.sig_gate = nn.Sigmoid()
 
     def forward(self, model_input):
@@ -78,7 +80,8 @@ class MoeModel(nn.Module):
             else:
                 gates = torch.matmul(model_input,self.gating_weights)
 
-            gates = self.bn_gate(gates)
+            # gates = self.bn_gate(gates)
+            gates = bn_action(gates,self.bn_gate)
             gates = self.sig_layer(gates)
 
             probabilities = torch.mul(probabilities,gates)
