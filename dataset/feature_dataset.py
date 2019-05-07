@@ -3,9 +3,10 @@ import torch
 import h5py as h5
 import os
 import numpy as np
+import random
 
 class feature_dataset(Data.Dataset):
-    def __init__(self,frame_path ='/mnt/mmu/liuchang/kuaishou_feature.h5'):
+    def __init__(self,frame_path ='/mnt/mmu/liuchang/kuaishou_feature.h5',data_type = 'train'):
         data = h5.File(frame_path,'r')
         # print('read_finish!')
         self.frames = np.array(data['feature']).reshape((-1,300,1024))
@@ -18,6 +19,25 @@ class feature_dataset(Data.Dataset):
         self.audio_path = '/mnt/mmu/liuchang/hywData/ksData_audio300'
         self.a_path_list = os.listdir(self.audio_path)
         # self.audio_id = [path.split[0] for path in a_path_list]
+
+        data_list = []
+        self.data_num = self.frames.shape[0]
+        for i in range(self.data_num):
+
+            if data_type == 'train':
+                if i % 10 >= 0 and i % 10 <= 7:
+                    data_list.append(i)
+
+            elif data_type == 'valid':
+                if i % 10 == 8:
+                    data_list.append(i)
+            else:
+                if i % 10 == 9:
+                    data_list.append(i)
+
+        self.frames = self.frames[data_list]
+        self.labels = self.labels[data_list]
+        self.image_id = [self.image_id[i] for i in range(len(self.image_id)) if i in data_list]
 
     def __getitem__(self,index):
         id = self.image_id[index]
