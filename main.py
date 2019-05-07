@@ -110,8 +110,8 @@ extract_1024_features={
 }
 
 
-#tasks.append(extract_2048_features)
+tasks.append(extract_2048_features)
 #tasks.append(extract_1024_features)
-tasks.append(test_task)
+#tasks.append(test_task)
 r.generate_tasks(tasks)
 r.main_loop()
