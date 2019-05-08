@@ -6,7 +6,7 @@ import torch.functional as F
 from .video_level_models import MoeModel
 import copy
 from torch.autograd import Variable
-from util import *
+from .util import *
 
 
 # init_module = init_NetVLAD()
@@ -265,5 +265,6 @@ if __name__ == "__main__":
     feature = feature.cuda()
     net = NetVLADModelLF()
     net.cuda()
+    print(list(net.parameters()))
     # net._parameters['hidden1_weights'].data =
     s = net(feature)

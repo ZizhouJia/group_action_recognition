@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import math
 from torch.nn.parameter import Parameter
-from util import *
+from .util import *
 import torch.functional as F
 
 class MoeModel(nn.Module):
