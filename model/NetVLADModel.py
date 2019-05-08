@@ -152,6 +152,7 @@ class NetVLADModelLF(nn.Module):
                 self.gating_bn.cuda()
 
         self.c_layer.cuda()
+        return self
 
 class NetVLAD(nn.Module):
     def __init__(self, feature_size, max_frames, cluster_size, add_batch_norm, is_training,init_module = None,net_type = 'video_VLAD'):
@@ -216,6 +217,7 @@ class NetVLAD(nn.Module):
         if self.add_batch_norm:
             # self.bn1 = nn.BatchNorm1d(self.max_frames)
             self.cluster_bn.cuda()
+        return self
 
 class LightVLAD(nn.Module):
 
