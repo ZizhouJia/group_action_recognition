@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import math
 from torch.nn.parameter import Parameter
-from .util import *
+from util import *
 import torch.functional as F
 
 class MoeModel(nn.Module):
@@ -89,3 +89,9 @@ class MoeModel(nn.Module):
         probabilities = probabilities.view(probabilities.shape[0],-1)
 
         return probabilities
+
+    def cuda(self, device=None):
+        super(MoeModel, self).cuda()
+        # if self.add_batch_norm:
+            # self.bn1 = nn.BatchNorm1d(self.max_frames)
+        self.bn_gate.cuda()
