@@ -13,10 +13,10 @@ def bn_action(tensor,bn):
 class bn_layer(nn.Module):
     def __init__(self,feature_size):
         super(bn_layer, self).__init__()
-        self.mean = torch.zeros(feature_size)
-        self.variance = torch.ones(feature_size)
-        self.weight = create_Param((feature_size,))
-        self.bias = create_Param((feature_size,))
+        self.mean = torch.zeros(int(feature_size))
+        self.variance = torch.ones(int(feature_size))
+        self.weight = create_Param((int(feature_size),))
+        self.bias = create_Param((int(feature_size),))
 
     def forward(self,input):
         return nn.functional.batch_norm(

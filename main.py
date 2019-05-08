@@ -40,7 +40,7 @@ def generate_feature_dataset(batch_size,path):
     val_set=int(features.shape[0]*0.1)
     test_set=features.shape[0]-train_set-val_set
     train_loader=Data.DataLoader(dataset.feature_dataset.feature_dataset(features[:train_set],label[:train_set]),batch_size=batch_size,shuffle=True,num_workers=8)
-    test_loader=Data.DataLoader(dataset.fearture_dataset.feature_dataset(features[val_set:],label[val_set:]),batch_size=1,shuffle=False,num_workers=8)
+    test_loader=Data.DataLoader(dataset.feature_dataset.feature_dataset(features[val_set:],label[val_set:]),batch_size=1,shuffle=False,num_workers=8)
     val_loader=Data.DataLoader(dataset.features_dataset.feature_dataset(features[train_set:val_set],label[train_set:val_set]),batch_size=batch_size,shuffle=False,num_workers=8)
     return train_loader,val_loader,test_loader
 
@@ -52,6 +52,16 @@ def generate_yt8m_dataset(batch_size):
     valid_loader=Data.DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=0)
     test_loader=Data.DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=0)
     return train_loader,valid_loader,test_loader
+
+def generate_kuaishou_dataset(batch_size):
+    train_dataset=dataset.feature_dataset.feature_dataset(data_type="train")
+    valid_dataset=dataset.feature_dataset.feature_dataset(data_type="valid")
+    test_dataset=dataset.feature_dataset.feature_dataset(data_type="test")
+    train_loader=Data.DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0)
+    valid_loader=Data.DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=0)
+    test_loader=Data.DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=0)
+    return train_loader,valid_loader,test_loader
+
     
 
 
@@ -61,16 +71,16 @@ tasks=[]
 
 config=model_utils.config.common_solver_config()
 
-config["epochs"]=5
-config["dataset_function"]=generate_yt8m_dataset
-config["dataset_function_params"]={"batch_size":160}
+config["epochs"]=200
+config["dataset_function"]=generate_kuaishou_dataset
+config["dataset_function_params"]={"batch_size":32}
 config["learning_rate_decay_iteration"]=4000000
 config["dataset_function_params"]={"batch_size":160}
-config["model_class"]=[model.DbofModel.DbofModel]
-config["model_params"]=[{}]
+config["model_class"]=[model.NetVLADModel.NetVLADModelLF]
+config["model_params"]=[{"vocab_size":3}]
 config["optimizer_function"]=optimizer.generate_optimizers
 config["optimizer_params"]={"lrs":[0.0002],"optimizer_type":"adam","weight_decay":1.0}
-config["task_name"]="DbofModel_baseline"
+config["task_name"]="NetVLADModel_baseline"
 config["mem_use"]=[10000,10000,10000,10000]
 config["grad_plenty"]=1.0
 config["distilling_mode"]=False
@@ -110,8 +120,8 @@ extract_1024_features={
 }
 
 
-tasks.append(extract_2048_features)
+#tasks.append(extract_2048_features)
 #tasks.append(extract_1024_features)
-#tasks.append(test_task)
+tasks.append(test_task)
 r.generate_tasks(tasks)
 r.main_loop()
