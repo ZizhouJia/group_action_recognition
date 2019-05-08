@@ -3,12 +3,40 @@ import torch.nn as nn
 import math
 from torch.nn.parameter import Parameter
 from torch.autograd import Variable
+from tensorflow.python import pywrap_tensorflow as pt
 
 def bn_action(tensor,bn):
     for i in range(tensor.shape[0]):
         tmp_batch = bn(tensor[i])
         tensor[i] = tmp_batch
         return tensor
+
+class init_Module():
+    # def __init__(self,model_path = '/home/hyw/y8_willow/gatednetvladLF-256k-1024-80-0002-300iter-norelu-basic-gatedmoe/model.ckpt-0',print_weight = False):
+    def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001',print_weight = False):
+        self.reader = pt.NewCheckpointReader(model_path)
+        if print_weight:
+            vars = self.reader.get_variable_to_shape_map()
+            for k in sorted(vars):
+                print(k, vars[k])
+
+        # value = reader.get_tensor("tensor_name")
+
+    def get_tensor(self,tensor_name):
+        value = self.reader.get_tensor(tensor_name)
+        return value
+
+    def init_bn(self,bn,bn_name):
+        if bn_name == '':
+            return
+        bn_weight = self.get_tensor(bn_name + '/gamma')
+        bn_bias = self.get_tensor(bn_name + '/beta')
+        tmp_weight = torch.from_numpy(bn_weight)
+        tmp_bias = torch.from_numpy(bn_bias)
+        bn._parameters['weight'].data = tmp_weight
+        bn._parameters['bias'].data = tmp_bias
+        return bn
+
 
 class bn_layer(nn.Module):
     def __init__(self,feature_size):
@@ -22,6 +50,12 @@ class bn_layer(nn.Module):
         return nn.functional.batch_norm(
             input, self.mean, self.variance, self.weight, self.bias,training = False)
 
+    def cuda(self):
+        super(bn_layer, self).cuda()
+        self.mean = self.mean.cuda()
+        self.variance = self.variance.cuda()
+        # self.weight = self.weight.cuda()
+        # self.bias = self.bias.cuda()
 
 def Dequantize(feat_vector, max_quantized_value=2, min_quantized_value=-2):
   """Dequantize the feature from the byte format to the float format.
