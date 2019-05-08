@@ -3,36 +3,15 @@ import torch.nn as nn
 import math
 from torch.nn.parameter import Parameter
 import torch.functional as F
-from .video_level_models import MoeModel
-from tensorflow.python import pywrap_tensorflow as pt
+from video_level_models import MoeModel
 import copy
 from torch.autograd import Variable
-from .util import *
+from util import *
 
-class init_NetVLAD():
-    def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001'):
-        self.reader = pt.NewCheckpointReader(model_path)
-        # value = reader.get_tensor("tensor_name")
-
-    def get_tensor(self,tensor_name):
-        value = self.reader.get_tensor(tensor_name)
-        return value
-
-    def init_bn(self,bn,bn_name):
-        if bn_name == '':
-            return
-        bn_weight = self.get_tensor(bn_name + '/gamma')
-        bn_bias = self.get_tensor(bn_name + '/beta')
-        tmp_weight = torch.from_numpy(bn_weight)
-        tmp_bias = torch.from_numpy(bn_bias)
-        bn._parameters['weight'].data = tmp_weight
-        bn._parameters['bias'].data = tmp_bias
-        return bn
 
 # init_module = init_NetVLAD()
 # value = init_module.get_tensor('audio_VLAD/cluster_weights')
 # c = 1
-
 
 class NetVLADModelLF(nn.Module):
     def __init__(self,
@@ -55,7 +34,7 @@ class NetVLADModelLF(nn.Module):
         # random_frames = sample_random_frames or opt.sample_random_frames
         self.cluster_size = cluster_size or opt.netvlad_cluster_size
         self.hidden1_size = hidden_size or opt.netvlad_hidden_size
-        self.init_module = init_NetVLAD()
+        self.init_module = init_Module()
         if False:
             relu = opt.netvlad_relu
             dimred = opt.netvlad_dimred
@@ -160,6 +139,20 @@ class NetVLADModelLF(nn.Module):
         prob = self.c_layer(activation)
         return prob
 
+    def cuda(self,device=None):
+        super(NetVLADModelLF, self).cuda()
+        self.input_bn.cuda()
+        self.video_NetVLAD.cuda()
+        self.audio_NetVLAD.cuda()
+        #
+        if self.add_batch_norm and self.relu:
+            self.hidden1_bn.cuda()
+        if self.gating:
+            if self.add_batch_norm:
+                self.gating_bn.cuda()
+
+        self.c_layer.cuda()
+
 class NetVLAD(nn.Module):
     def __init__(self, feature_size, max_frames, cluster_size, add_batch_norm, is_training,init_module = None,net_type = 'video_VLAD'):
         super(NetVLAD,self).__init__()
@@ -218,6 +211,12 @@ class NetVLAD(nn.Module):
 
         return vlad
 
+    def cuda(self, device=None):
+        super(NetVLAD, self).cuda()
+        if self.add_batch_norm:
+            # self.bn1 = nn.BatchNorm1d(self.max_frames)
+            self.cluster_bn.cuda()
+
 class LightVLAD(nn.Module):
 
     def __init__(self,feature_size, max_frames, cluster_size, add_batch_norm, is_training):
@@ -263,6 +262,8 @@ class LightVLAD(nn.Module):
 
 if __name__ == "__main__":
     feature = torch.Tensor(5,300,1024 + 128)
+    feature = feature.cuda()
     net = NetVLADModelLF()
+    net.cuda()
     # net._parameters['hidden1_weights'].data =
     s = net(feature)
