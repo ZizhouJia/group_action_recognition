@@ -12,8 +12,8 @@ def bn_action(tensor,bn):
         return tensor
 
 class init_Module():
-    # def __init__(self,model_path = '/home/hyw/y8_willow/gatednetvladLF-256k-1024-80-0002-300iter-norelu-basic-gatedmoe/model.ckpt-0',print_weight = False):
-    def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001',print_weight = False):
+    def __init__(self,model_path = '/home/hyw/y8_willow/gatednetvladLF-256k-1024-80-0002-300iter-norelu-basic-gatedmoe/model.ckpt-0',print_weight = False):
+    # def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001',print_weight = False):
         self.reader = pt.NewCheckpointReader(model_path)
         if print_weight:
             vars = self.reader.get_variable_to_shape_map()
@@ -41,8 +41,11 @@ class init_Module():
 class bn_layer(nn.Module):
     def __init__(self,feature_size):
         super(bn_layer, self).__init__()
-        self.mean = torch.zeros(int(feature_size))
-        self.variance = torch.ones(int(feature_size))
+        self.mean = Parameter(torch.zeros(int(feature_size)))
+        self.variance = Parameter(torch.ones(int(feature_size)))
+
+        self.mean.requires_grad = False
+        self.variance.requires_grad = False
         self.weight = create_Param((int(feature_size),))
         self.bias = create_Param((int(feature_size),))
 
@@ -50,12 +53,12 @@ class bn_layer(nn.Module):
         return nn.functional.batch_norm(
             input, self.mean, self.variance, self.weight, self.bias,training = False)
 
-    def cuda(self):
-        super(bn_layer, self).cuda()
-        self.mean = self.mean.cuda()
-        self.variance = self.variance.cuda()
-        # self.weight = self.weight.cuda()
-        # self.bias = self.bias.cuda()
+    # def cuda(self):
+    #     super(bn_layer, self).cuda()
+    #     self.mean = self.mean.cuda()
+    #     self.variance = self.variance.cuda()
+    #     # self.weight = self.weight.cuda()
+    #     # self.bias = self.bias.cuda()
 
 def Dequantize(feat_vector, max_quantized_value=2, min_quantized_value=-2):
   """Dequantize the feature from the byte format to the float format.
