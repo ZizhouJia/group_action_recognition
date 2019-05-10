@@ -6,7 +6,7 @@ import torch.functional as F
 from .video_level_models import MoeModel
 import copy
 from torch.autograd import Variable
-from util import *
+from .util import *
 
 
 # init_module = init_NetVLAD()
@@ -139,20 +139,20 @@ class NetVLADModelLF(nn.Module):
         prob = self.c_layer(activation)
         return prob
 
-    def cuda(self,device=None):
-        super(NetVLADModelLF, self).cuda()
-        self.input_bn.cuda()
-        self.video_NetVLAD.cuda()
-        self.audio_NetVLAD.cuda()
-        #
-        if self.add_batch_norm and self.relu:
-            self.hidden1_bn.cuda()
-        if self.gating:
-            if self.add_batch_norm:
-                self.gating_bn.cuda()
-
-        self.c_layer.cuda()
-        return self
+    # def cuda(self,device=None):
+    #     super(NetVLADModelLF, self).cuda()
+    #     self.input_bn.cuda()
+    #     self.video_NetVLAD.cuda()
+    #     self.audio_NetVLAD.cuda()
+    #     #
+    #     if self.add_batch_norm and self.relu:
+    #         self.hidden1_bn.cuda()
+    #     if self.gating:
+    #         if self.add_batch_norm:
+    #             self.gating_bn.cuda()
+    #
+    #     self.c_layer.cuda()
+    #     return self
 
 class NetVLAD(nn.Module):
     def __init__(self, feature_size, max_frames, cluster_size, add_batch_norm, is_training,init_module = None,net_type = 'video_VLAD'):
@@ -212,12 +212,12 @@ class NetVLAD(nn.Module):
 
         return vlad
 
-    def cuda(self, device=None):
-        super(NetVLAD, self).cuda()
-        if self.add_batch_norm:
-            # self.bn1 = nn.BatchNorm1d(self.max_frames)
-            self.cluster_bn.cuda()
-        return self
+    # def cuda(self, device=None):
+    #     super(NetVLAD, self).cuda()
+    #     if self.add_batch_norm:
+    #         # self.bn1 = nn.BatchNorm1d(self.max_frames)
+    #         self.cluster_bn.cuda()
+    #     return self
 
 class LightVLAD(nn.Module):
 
