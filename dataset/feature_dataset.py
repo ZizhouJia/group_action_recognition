@@ -40,13 +40,22 @@ class feature_dataset(Data.Dataset):
         self.image_id = [self.image_id[i] for i in range(len(self.image_id)) if i in data_list]
 
     def __getitem__(self,index):
-        id = self.image_id[index]
-        while not id+'.h5' in self.a_path_list:
-            index = (index + 1)%self.frames.shape[0]
-            id = self.image_id[index]
+        have_read = False
 
-        # print('get item')
-        a_data = h5.File(os.path.join(self.audio_path,id + '.h5'),'r')
+        while not have_read:
+            try:
+                id = self.image_id[index]
+                while not id+'.h5' in self.a_path_list:
+                    index = (index + 1)%self.frames.shape[0]
+                    id = self.image_id[index]
+
+                # print('get item')
+                a_data = h5.File(os.path.join(self.audio_path,id + '.h5'),'r')
+                have_read = True
+            except:
+                index = (index + 1) % self.frames.shape[0]
+
+
         f_feature = self.frames[index]
         a_feature = np.array(a_data[id + '_audio'])
 
@@ -61,10 +70,10 @@ class feature_dataset(Data.Dataset):
 
 if __name__ == '__main__':
     ks_dataset = feature_dataset()
-    source_trainloader = torch.utils.data.DataLoader(ks_dataset, batch_size=1, shuffle=False,
+    source_trainloader = torch.utils.data.DataLoader(ks_dataset, batch_size=10, shuffle=False,
                                                      num_workers=1, drop_last=True)
     tmp_loader = iter(source_trainloader)
-    for i in range(10):
+    for i in range(500):
         id,input,label = tmp_loader.next()
-    print('input shape ' + str(input.shape))
+        print('input shape ' + str(input.shape))
     c = 1
