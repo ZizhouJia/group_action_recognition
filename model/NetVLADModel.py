@@ -194,20 +194,20 @@ class NetVLAD(nn.Module):
             activation = self.activation + self.cluster_biases
 
         activation = self.softmax_layer(activation)
-        activation = activation.view(reshaped_input.shape[0], -1, self.max_frames, self.cluster_size)
+        activation = activation.view(reshaped_input.shape[0], -1, int(self.max_frames), int(self.cluster_size))
 
         a_sum = torch.sum(activation,keepdim = True,dim = -2)
         a = torch.mul(a_sum,self.cluster_weights2)
         activation = activation.permute(0,1,3,2)
 
-        reshaped_input = reshaped_input.view(reshaped_input.shape[0], -1, self.max_frames, self.feature_size)
+        reshaped_input = reshaped_input.view(reshaped_input.shape[0], -1, int(self.max_frames), int(self.feature_size))
         vlad = torch.matmul(activation, reshaped_input)
         vlad = vlad.permute(0, 1, 3, 2)
         vlad = vlad - a
 
         vlad = nn.functional.normalize(vlad, dim=2, p=2)
 
-        vlad = vlad.view(reshaped_input.shape[0], -1, self.cluster_size * self.feature_size)
+        vlad = vlad.view(reshaped_input.shape[0], -1, int(self.cluster_size * self.feature_size))
         vlad = nn.functional.normalize(vlad, dim=2, p=2)
 
         return vlad
@@ -251,10 +251,10 @@ class LightVLAD(nn.Module):
             activation = self.activation + self.bias1
 
         activation = self.softmax_layer(activation)
-        activation = activation.view(reshaped_input.shape[0],-1,self.max_frames,self.cluster_size)
+        activation = activation.view(reshaped_input.shape[0],-1,int(self.max_frames),int(self.cluster_size))
         activation = activation.permute(0,1,3,2)
 
-        reshaped_input = reshaped_input.view(reshaped_input.shape[0],-1,self.max_frames,self.feature_size)
+        reshaped_input = reshaped_input.view(reshaped_input.shape[0],-1,int(self.max_frames),int(self.feature_size))
         vlad = self.fc2(activation,reshaped_input)
 
         vlad = vlad.permute(0,1,3,2)
