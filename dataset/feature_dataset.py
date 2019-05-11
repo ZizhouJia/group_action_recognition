@@ -62,7 +62,7 @@ class feature_dataset(Data.Dataset):
         # print('f_feature ' + str(f_feature.shape))
         # print('a_feature ' + str(a_feature.shape))
 
-        return id, np.concatenate((f_feature,a_feature),axis=1).astype(np.float32),self.labels[index]
+        return id, np.concatenate((f_feature,a_feature),axis=1).astype(np.float32),int(self.labels[index])
 
 
     def __len__(self):

@@ -12,8 +12,8 @@ def bn_action(tensor,bn):
         return tensor
 
 class init_Module():
-    def __init__(self,model_path = '/home/hyw/y8_willow/gatednetvladLF-256k-1024-80-0002-300iter-norelu-basic-gatedmoe/model.ckpt-0',print_weight = False):
-    # def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001',print_weight = False):
+    #def __init__(self,model_path = '/home/hyw/y8_willow/gatednetvladLF-256k-1024-80-0002-300iter-norelu-basic-gatedmoe/model.ckpt-0',print_weight = False):
+    def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001',print_weight = False):
         self.reader = pt.NewCheckpointReader(model_path)
         if print_weight:
             vars = self.reader.get_variable_to_shape_map()
