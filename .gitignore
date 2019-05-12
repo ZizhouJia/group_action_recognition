@@ -3,3 +3,6 @@ runs/*
 pca_matrix/*
 *.swp
 *.h5
+*/__pycache__
+checkpoints/*
+
