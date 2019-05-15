@@ -5,4 +5,5 @@ pca_matrix/*
 *.h5
 */__pycache__
 checkpoints/*
+*.zip
 

@@ -26,6 +26,8 @@ class NetVLADModelLF(nn.Module):
                  cluster_size=256,
                  hidden_size=1024,
                  is_training=True,
+                 use_moe = True,
+                 pretrain = True,
                  **unused_params):
         super(NetVLADModelLF, self).__init__()
 
@@ -34,7 +36,10 @@ class NetVLADModelLF(nn.Module):
         # random_frames = sample_random_frames or opt.sample_random_frames
         self.cluster_size = cluster_size or opt.netvlad_cluster_size
         self.hidden1_size = hidden_size or opt.netvlad_hidden_size
-        self.init_module = init_Module()
+        if pretrain:
+            self.init_module = init_Module()
+        else:
+            self.init_module = None
         if False:
             relu = opt.netvlad_relu
             dimred = opt.netvlad_dimred
@@ -63,50 +68,45 @@ class NetVLADModelLF(nn.Module):
 
         self.hidden1_weights = create_Param((vlad_dim, self.hidden1_size),std = 1 / math.sqrt(self.cluster_size)
                                             ,init_module=self.init_module,tensor_name='hidden1_weights')
-        # self.hidden1_weights = Parameter(torch.Tensor(vlad_dim, self.hidden1_size))
-        # torch.nn.init.normal(self.hidden1_weights, 0, 1 / math.sqrt(self.cluster_size))
 
         self.input_bn = bn_layer(self.feature_size)
-        self.init_module.init_bn(self.input_bn,'input_bn')
+        if type(self.init_module) != type(None):
+            self.init_module.init_bn(self.input_bn,'input_bn')
 
         if self.add_batch_norm and self.relu:
             self.hidden1_bn = bn_layer(self.hidden1_size)
         else:
             self.hidden1_biases = create_Param((self.hidden1_size,),std=0.01
                                                ,init_module=self.init_module,tensor_name='hidden1_biases')
-            # self.hidden1_biases = Parameter(torch.Tensor(self.hidden1_size))
-            # torch.nn.init.normal(self.hidden1_biases, 0, 0.01)
-
 
 
         if self.relu:
             self.relu6_layer = nn.ReLU6()
 
         if self.gating:
-            # self.gating_weights = Parameter(torch.Tensor(self.hidden1_size,self.hidden1_size))
-            # torch.nn.init.normal(self.gating_weights, 0, 1/math.sqrt(self.hidden1_size))
             self.gating_weights = create_Param((self.hidden1_size,self.hidden1_size),std=1/math.sqrt(self.hidden1_size)
                                                ,init_module=self.init_module,tensor_name='gating_weights_2')
 
             if add_batch_norm:
                 self.gating_bn = bn_layer(self.hidden1_size)
-                self.init_module.init_bn(self.gating_bn, 'gating_bn')
+                if type(self.init_module) != type(None):
+                    self.init_module.init_bn(self.gating_bn, 'gating_bn')
             else:
                 self.gating_biases = create_Param((self.cluster_size,),std=1 / math.sqrt(feature_size)
                                                   ,init_module=self.init_module,tensor_name='gating_biases')
-                # self.gating_biases = Parameter(torch.Tensor(self.cluster_size))
-                # torch.nn.init.normal(self.gating_biases, 0, 1 / math.sqrt(feature_size))
 
             self.sig_layer = nn.Sigmoid()
 
             if self.remove_diag:
                 pass
 
-        self.c_layer = MoeModel(opt=None,input_size=hidden_size,vocab_size = vocab_size,is_training = True)
-
+        self.use_moe = use_moe
+        if self.use_moe:
+            self.c_layer = MoeModel(opt=None,input_size=hidden_size,vocab_size = vocab_size,is_training = True)
+        else:
+            self.c_layer = nn.Linear(hidden_size,vocab_size)
 
     def forward(self, reshaped_input):
-        # reshaped_input = self.input_bn(reshaped_input)
         reshaped_input = bn_action(reshaped_input,self.input_bn)
 
         vlad_video = self.video_NetVLAD(reshaped_input[:,:,0:1024])
@@ -128,7 +128,6 @@ class NetVLADModelLF(nn.Module):
             gates = torch.matmul(activation,self.gating_weights)
 
             if self.add_batch_norm:
-                # gates = self.gating_bn(gates)
                 gates = bn_action(gates,self.gating_bn)
             else:
                 gates += self.gating_biases
@@ -136,6 +135,8 @@ class NetVLADModelLF(nn.Module):
             gates = self.sig_layer(gates)
             activation = torch.mul(activation,gates)
 
+        if not self.use_moe:
+            activation = activation.squeeze(1)
         prob = self.c_layer(activation)
         return prob
 
@@ -161,20 +162,17 @@ class NetVLAD(nn.Module):
         self.max_frames = max_frames
         self.is_training = is_training
         self.add_batch_norm = add_batch_norm
-        self.cluster_size = cluster_size
+        self.cluster_size = int(cluster_size)
+        print('cluster size ' + str(self.cluster_size))
         self.init_module = init_module
 
         self.cluster_weights = create_Param((self.feature_size,self.cluster_size),std=1 / math.sqrt(self.feature_size),
                                             init_module=self.init_module,tensor_name=net_type + 'cluster_weights')
 
-        # self.fc1 = nn.Linear(self.feature_size, self.cluster_size, bias=False)
-        # for p in self.fc1.parameters():
-        #     torch.nn.init.normal(p, 0, 1 / math.sqrt(self.feature_size))
-
         if self.add_batch_norm:
-            # self.bn1 = nn.BatchNorm1d(self.max_frames)
             self.cluster_bn = bn_layer(self.cluster_size)
-            self.init_module.init_bn(self.cluster_bn,net_type + 'cluster_bn')
+            if type(self.init_module) != type(None):
+                self.init_module.init_bn(self.cluster_bn,net_type + 'cluster_bn')
 
         else:
             self.cluster_biases = create_Param((self.cluster_size),std = 1 / math.sqrt(self.feature_size))
@@ -186,28 +184,27 @@ class NetVLAD(nn.Module):
 
     def forward(self, reshaped_input):
         activation = torch.matmul(reshaped_input,self.cluster_weights)
-        # activation = self.fc1(reshaped_input)
+
         if self.add_batch_norm:
-            # activation = self.cluster_bn(activation)
             activation = bn_action(activation,self.cluster_bn)
         else:
             activation = self.activation + self.cluster_biases
 
         activation = self.softmax_layer(activation)
-        activation = activation.view(reshaped_input.shape[0], -1, int(self.max_frames), int(self.cluster_size))
+        activation = activation.view(reshaped_input.shape[0], -1, self.max_frames, self.cluster_size)
 
         a_sum = torch.sum(activation,keepdim = True,dim = -2)
         a = torch.mul(a_sum,self.cluster_weights2)
         activation = activation.permute(0,1,3,2)
 
-        reshaped_input = reshaped_input.view(reshaped_input.shape[0], -1, int(self.max_frames), int(self.feature_size))
+        reshaped_input = reshaped_input.view(reshaped_input.shape[0], -1, self.max_frames, self.feature_size)
         vlad = torch.matmul(activation, reshaped_input)
         vlad = vlad.permute(0, 1, 3, 2)
         vlad = vlad - a
 
         vlad = nn.functional.normalize(vlad, dim=2, p=2)
 
-        vlad = vlad.view(reshaped_input.shape[0], -1, int(self.cluster_size * self.feature_size))
+        vlad = vlad.view(reshaped_input.shape[0], -1, self.cluster_size * self.feature_size)
         vlad = nn.functional.normalize(vlad, dim=2, p=2)
 
         return vlad
@@ -251,10 +248,10 @@ class LightVLAD(nn.Module):
             activation = self.activation + self.bias1
 
         activation = self.softmax_layer(activation)
-        activation = activation.view(reshaped_input.shape[0],-1,int(self.max_frames),int(self.cluster_size))
+        activation = activation.view(reshaped_input.shape[0],-1,self.max_frames,self.cluster_size)
         activation = activation.permute(0,1,3,2)
 
-        reshaped_input = reshaped_input.view(reshaped_input.shape[0],-1,int(self.max_frames),int(self.feature_size))
+        reshaped_input = reshaped_input.view(reshaped_input.shape[0],-1,self.max_frames,self.feature_size)
         vlad = self.fc2(activation,reshaped_input)
 
         vlad = vlad.permute(0,1,3,2)
@@ -267,6 +264,5 @@ if __name__ == "__main__":
     feature = feature.cuda()
     net = NetVLADModelLF()
     net.cuda()
-    print(list(net.parameters()))
     # net._parameters['hidden1_weights'].data =
     s = net(feature)

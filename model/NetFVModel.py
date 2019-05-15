@@ -8,13 +8,14 @@ from .util import *
 
 class NetFV(nn.Module):
 
-    def __init__(self, opt,feature_size, max_frames, cluster_size, add_batch_norm, is_training):
+    def __init__(self, opt,feature_size, max_frames, cluster_size, add_batch_norm, is_training,init_module=None,net_type='video_FV/'):
         super(NetFV, self).__init__()
-        self.feature_size = feature_size
+        self.feature_size = int(feature_size)
         self.max_frames = max_frames
         self.is_training = is_training
         self.add_batch_norm = add_batch_norm
-        self.cluster_size = cluster_size
+        self.cluster_size = int(cluster_size)
+        self.init_module = init_module
 
         if False:
             self.fv_couple_weights = opt.fv_couple_weights
@@ -23,28 +24,42 @@ class NetFV(nn.Module):
             self.fv_couple_weights = True
             self.fv_couping_factor = 0.01
 
-        self.cluster_weights = create_Param((self.feature_size,self.cluster_size),std=1 / math.sqrt(self.feature_size))
-        self.covar_weights = create_Var((self.feature_size,self.cluster_size),mean=1.0,std=1 / math.sqrt(self.feature_size))
+        self.cluster_weights = create_Param((self.feature_size,self.cluster_size),std=1 / math.sqrt(self.feature_size),
+                                            init_module=self.init_module,tensor_name=net_type + 'cluster_weights')
+
+        # print('cluster_weights shape ' + str(self.cluster_weights.shape))
+
+
+        self.covar_weights = create_Param((self.feature_size,self.cluster_size),mean=1.0,std=1 / math.sqrt(self.feature_size),
+                                            init_module=self.init_module,tensor_name=net_type + 'covar_weights')
+
+        # print('covar_weights shape ' + str(self.covar_weights.shape))
+        # self.covar_weights = Parameter(torch.pow(self.covar_weights, 2))
+        # self.covar_weights = Parameter(torch.add(self.covar_weights, 1e-6))
 
         if add_batch_norm:
-            self.bn1 = nn.BatchNorm1d(max_frames)
+            self.cluster_bn = bn_layer(self.cluster_size)
+            if type(self.init_module) != type(None):
+                self.init_module.init_bn(self.cluster_bn, net_type + 'cluster_bn')
         else:
-            self.cluster_biases = create_Param((self.cluster_size),std=1/math.sqrt(self.feature_size))
+            self.cluster_biases = create_Param((self.cluster_size),std=1/math.sqrt(self.feature_size),
+                                            init_module=self.init_module,tensor_name=net_type + 'cluster_biases')
 
         self.soft_layer = nn.Softmax()
 
         if not self.fv_couple_weights:
-            self.cluster_weights2 = create_Param((1,self.feature_size,self.cluster_size),std = 1/math.sqrt(self.feature_size))
+            self.cluster_weights2 = create_Param((1,self.feature_size,self.cluster_size),std = 1/math.sqrt(self.feature_size),
+                                            init_module=self.init_module,tensor_name=net_type + 'cluster_weights2')
 
 
     def forward(self, reshaped_input):
-        self.covar_weights = torch.pow(self.covar_weights,2)
-        self.covar_weights = torch.add(self.covar_weights,1e-6)
+        covar_weights = torch.pow(self.covar_weights, 2)
+        covar_weights = torch.add(covar_weights, 1e-6)
 
         activation = torch.matmul(reshaped_input,self.cluster_weights)
 
         if self.add_batch_norm:
-            activation = self.bn1(activation)
+            activation = bn_action(activation,self.cluster_bn)
         else:
             activation += self.cluster_biases
 
@@ -68,12 +83,13 @@ class NetFV(nn.Module):
         a2 = torch.mul(a_sum,torch.pow(cluster_weights2,2))
 
         b2 = torch.mul(fv1,cluster_weights2)
-        fv2 = torch.matmul(activation,torch.sqrt(reshaped_input))
+        fv2 = torch.matmul(activation,torch.pow(reshaped_input,2))
 
         fv2 = fv2.permute(0,1,3,2)
-        fv2 = a2 + fv2 + torch.mul(-2,b2)
+        # fv2 = a2 + fv2 + torch.mul(-2,b2)
+        fv2 = a2 + fv2 -2*b2
 
-        fv2 = torch.div(fv2,torch.sqrt(self.covar_weights))
+        fv2 = torch.div(fv2,torch.pow(covar_weights,2))
         fv2 = fv2 - a_sum
 
         fv2 = fv2.view(fv2.shape[0],-1,self.cluster_size*self.feature_size)
@@ -83,7 +99,7 @@ class NetFV(nn.Module):
         fv2 = nn.functional.normalize(fv2, dim=2, p=2)
 
         fv1 = fv1 - a
-        fv1 = torch.div(fv1,a)
+        fv1 = torch.div(fv1,covar_weights)
 
         fv1 = nn.functional.normalize(fv1, dim=2, p=2)
         fv1 = fv1.view(fv1.shape[0], -1, self.cluster_size * self.feature_size)
@@ -103,6 +119,7 @@ class NetFVModellLF(nn.Module):
                  cluster_size=64,
                  hidden_size=2048,
                  is_training=True,
+                 pretrain = True,
                  **unused_params):
         super(NetFVModellLF,self).__init__()
 
@@ -113,6 +130,12 @@ class NetFVModellLF(nn.Module):
         self.hidden1_size = hidden_size or opt.fv_hidden_size
         self.feature_size = feature_size
 
+        if pretrain:
+            self.init_module = init_Module(model_path='/mnt/mmu/liuchang/y8_tf/trained_models/NetFV/model.ckpt-244087',
+                                       print_weight=False)
+        else:
+            self.init_module = None
+
         if False:
             self.relu = opt.fv_relu
             self.gating = opt.gating
@@ -122,39 +145,53 @@ class NetFVModellLF(nn.Module):
 
         self.max_frames = num_frames
 
-        self.video_NetFV = NetFV(opt,1024, self.max_frames, cluster_size, add_batch_norm, is_training)
-        self.audio_NetFV = NetFV(opt,128, self.max_frames, cluster_size / 2, add_batch_norm, is_training)
-
         if add_batch_norm:
-            self.bn1 = nn.BatchNorm1d(self.max_frames)
+            # self.input_bn = nn.BatchNorm1d(self.max_frames)
+            self.input_bn = bn_layer(self.feature_size)
+            if type(self.init_module) != type(None):
+                self.init_module.init_bn(bn=self.input_bn, bn_name='tower/input_bn')
 
-        self.fv_dim = cluster_size *  1024 + cluster_size//2 * 128
+        self.video_NetFV = NetFV(opt,1024, self.max_frames, cluster_size, add_batch_norm, is_training,init_module=self.init_module,net_type='tower/video_FV/')
+        self.audio_NetFV = NetFV(opt,128, self.max_frames, cluster_size / 2, add_batch_norm, is_training,init_module=self.init_module,net_type='tower/audio_FV/')
+
+        self.fv_dim = cluster_size * 1024 + cluster_size // 2 * 128
         self.fv_dim = self.fv_dim * 2
 
-        self.hidden1_weights = create_Param((self.fv_dim,self.hidden1_size),std = 1/math.sqrt(cluster_size))
+
+        self.hidden1_weights = create_Param((self.fv_dim,self.hidden1_size),std = 1/math.sqrt(cluster_size),
+                                            init_module=self.init_module, tensor_name='tower/hidden1_weights')
 
         if self.add_batch_norm and self.relu:
-            self.bn2 = nn.BatchNorm1d(1)
+            # self.bn2 = nn.BatchNorm1d(1)
+            self.hidden1_bn = bn_layer(self.hidden1_size)
+            if type(self.init_module) != type(None):
+                self.init_module.init_bn(bn=self.hidden1_bn, bn_name='tower/hidden1_bn')
         else:
-            self.hidden1_biases = create_Param((self.hidden1_size),std=0.01)
+            self.hidden1_biases = create_Param((self.hidden1_size),std=0.01,
+                                  init_module = self.init_module, tensor_name = 'tower/hidden1_biases')
 
         if self.relu:
             self.relu6_layer = nn.ReLU6()
 
         if self.gating:
-            self.gating_weights = create_Param((self.hidden1_size,self.hidden1_size),std = 1/math.sqrt(self.hidden1_size))
+            self.gating_weights = create_Param((self.hidden1_size,self.hidden1_size),std = 1/math.sqrt(self.hidden1_size),
+                                  init_module = self.init_module, tensor_name = 'tower/gating_weights_2')
 
             if self.add_batch_norm:
-                self.bn3 = nn.BatchNorm1d(1)
+                self.gating_bn = bn_layer(self.hidden1_size)
+                if type(self.init_module) != type(None):
+                    self.init_module.init_bn(bn=self.gating_bn, bn_name='tower/gating_bn')
             else:
-                self.gating_biases = create_Param((self.cluster_size),std=1/math.sqrt(self.feature_size))
+                self.gating_biases = create_Param((self.hidden1_size),std=1/math.sqrt(self.feature_size),
+                                  init_module = self.init_module, tensor_name = 'tower/gating_biases')
 
             self.sig_layer = nn.Sigmoid()
 
         self.c_layer = MoeModel(opt=None, input_size=self.hidden1_size, vocab_size=vocab_size, is_training=True)
 
     def forward(self, reshaped_input):
-        reshaped_input = self.bn1(reshaped_input)
+        reshaped_input = bn_action(reshaped_input,self.input_bn)
+
         fv_video = self.video_NetFV(reshaped_input[:,:,0:1024])
         fv_audio = self.audio_NetFV(reshaped_input[:,:,1024:])
 
@@ -163,7 +200,7 @@ class NetFVModellLF(nn.Module):
         activaiton = torch.matmul(fv,self.hidden1_weights)
 
         if self.add_batch_norm and self.relu:
-            activaiton = self.bn2(activaiton)
+            activaiton = bn_action(activaiton,self.hidden1_bn)
         else:
             activaiton += self.hidden1_biases
 
@@ -174,7 +211,7 @@ class NetFVModellLF(nn.Module):
             gates = torch.matmul(activaiton,self.gating_weights)
 
             if self.add_batch_norm:
-                gates = self.bn3(gates)
+                gates = bn_action(gates,self.gating_bn)
             else:
                 gates += self.gating_biases
 

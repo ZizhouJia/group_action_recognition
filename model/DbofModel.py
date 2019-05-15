@@ -19,6 +19,8 @@ class DbofModel(nn.Module):
                    hidden_size=1024,
                    is_training=True,
                    feature_size = 1024 + 128,
+                   pretrain = True,
+                   use_moe=False,
                    **unused_params):
         super(DbofModel,self).__init__()
 
@@ -33,50 +35,73 @@ class DbofModel(nn.Module):
         self.num_frames = num_frames;
         self.max_frames = num_frames;
 
-        if add_batch_norm:
-            self.bn1 = nn.BatchNorm1d(self.max_frames)
-
-        self.cluster_weights = create_Param((self.feature_size,self.cluster_size),std=1 / math.sqrt(self.feature_size))
-
-        if add_batch_norm:
-            self.bn2 = nn.BatchNorm1d(self.max_frames)
+        if pretrain:
+            self.init_module = init_Module(model_path='/mnt/mmu/liuchang/y8_tf/trained_models/DbofModel/model.ckpt-246805',print_weight=False)
         else:
-            self.cluster_biases = create_Param((self.cluster_size),std = 1/math.sqrt(self.feature_size))
+            self.init_module = None
+
+        if add_batch_norm:
+            self.input_bn = bn_layer(feature_size)
+            if type(self.init_module) != type(None):
+                self.init_module.init_bn(bn=self.input_bn,bn_name='tower/input_bn')
+
+        self.cluster_weights = create_Param((self.feature_size,self.cluster_size),std=1 / math.sqrt(self.feature_size),
+                                            init_module=self.init_module,tensor_name='tower/cluster_weights')
+
+        if add_batch_norm:
+            self.cluster_bn = nn.BatchNorm1d(self.cluster_size)
+            if type(self.init_module) != type(None):
+                self.init_module.init_bn(bn=self.cluster_bn,bn_name='tower/cluster_bn')
+        else:
+            self.cluster_biases = create_Param((self.cluster_size,),std = 1/math.sqrt(self.feature_size),
+                                               init_module=self.init_module,tensor_name='tower/cluster_biases')
 
         self.relu6_layer1 = nn.ReLU6()
-        self.hidden1_weights = create_Param((self.cluster_size,self.hidden1_size),std = 1/math.sqrt(self.cluster_size))
+        self.hidden1_weights = create_Param((self.cluster_size,self.hidden1_size),std = 1/math.sqrt(self.cluster_size),
+                                            init_module=self.init_module, tensor_name='tower/hidden1_weights')
 
         if add_batch_norm:
-            self.bn3 = nn.BatchNorm1d(1)
+            self.hidden1_bn = bn_layer(self.hidden1_size)
+            if type(self.init_module) != type(None):
+                self.init_module.init_bn(bn=self.hidden1_bn,bn_name='tower/hidden1_bn')
         else:
-            self.hidden1_bias = create_Param((self.hidden1_bias),std = 0.01)
+            self.hidden1_bias = create_Param((self.hidden1_size,),std = 0.01,
+                                             init_module=self.init_module,tensor_name='tower/hidden1_biases')
 
         self.relu6_layer2 = nn.ReLU6()
 
-        self.c_layer = MoeModel(opt=None, input_size=self.hidden1_size, vocab_size=vocab_size, is_training=True)
+        self.use_moe = use_moe
+        if self.use_moe:
+            self.c_layer = MoeModel(opt=None, input_size=self.hidden1_size, vocab_size=vocab_size, is_training=True)
+        else:
+            self.c_layer = nn.Linear(self.hidden1_size, vocab_size)
+
+        # self.c_layer = MoeModel(opt=None, input_size=self.hidden1_size, vocab_size=vocab_size, is_training=True)
 
     def forward(self, reshaped_input):
         if self.add_batch_norm:
-            reshaped_input = self.bn1(reshaped_input)
-        activations = torch.matmul(reshaped_input,self.cluster_weights)
+            reshaped_input = bn_action(reshaped_input, self.input_bn)
+        activations = torch.matmul(reshaped_input, self.cluster_weights)
 
         if self.add_batch_norm:
-            activations = self.bn2(activations)
+            activations = bn_action(activations, self.cluster_bn)
         else:
             activations += self.cluster_biases
 
         activations = self.relu6_layer1(activations)
-        activations = activations.view(activations.shape[0],-1,self.max_frames,self.cluster_size)
+        activations = activations.view(activations.shape[0], -1, self.max_frames, self.cluster_size)
 
-        activations = FramePooling(activations,'max')
-        activations = torch.matmul(ctivations,self.hidden1_weights)
+        activations = FramePooling(activations, 'max')
+        activations = torch.matmul(activations, self.hidden1_weights)
         if self.add_batch_norm:
-            activations = self.bn3(activations)
+            activations = bn_action(activations, self.hidden1_bn)
         else:
             activations += self.hidden1_bias
 
         activations = self.relu6_layer2(activations)
 
+        if not self.use_moe:
+            activations = activations.squeeze(1)
         prob = self.c_layer(activations)
 
         return prob

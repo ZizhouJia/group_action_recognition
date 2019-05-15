@@ -5,8 +5,6 @@ from torch.nn.parameter import Parameter
 from torch.autograd import Variable
 from tensorflow.python import pywrap_tensorflow as pt
 
-nn.BatchNorm1d
-
 def bn_action(tensor,bn):
     tmp_list = []
     for i in range(tensor.shape[0]):
@@ -16,8 +14,8 @@ def bn_action(tensor,bn):
     return torch.cat(tmp_list,dim = 0)
 
 class init_Module():
-    #def __init__(self,model_path = '/home/hyw/y8_willow/gatednetvladLF-256k-1024-80-0002-300iter-norelu-basic-gatedmoe/model.ckpt-0',print_weight = False):
-    def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001',print_weight = False):
+    def __init__(self,model_path = '/home/hyw/y8_willow/gatednetvladLF-256k-1024-80-0002-300iter-norelu-basic-gatedmoe/model.ckpt-0',print_weight = False):
+    # def __init__(self,model_path = '/mnt/mmu/liuchang/hywData/model/NetVLADModel/model.ckpt-310001',print_weight = False):
         self.reader = pt.NewCheckpointReader(model_path)
         if print_weight:
             vars = self.reader.get_variable_to_shape_map()
@@ -46,28 +44,25 @@ class bn_layer(nn.Module):
     def __init__(self,feature_size):
         super(bn_layer, self).__init__()
         self.feature_size = feature_size
-        # self.mean = Parameter(torch.zeros(int(feature_size)))
-        # self.variance = Parameter(torch.ones(int(feature_size)))
-        # self.mean = None
-        # self.variance = None
 
         self.register_buffer('mean', torch.zeros(int(feature_size)))
         self.register_buffer('variance', torch.ones(int(feature_size)))
 
         # self.mean.requires_grad = False
         # self.variance.requires_grad = False
-        self.weight = create_Param((int(feature_size),))
-        self.bias = create_Param((int(feature_size),))
+        self.weight = create_Param((int(feature_size),),std=1/math.sqrt(feature_size))
+        self.bias = create_Param((int(feature_size),),std=1/math.sqrt(feature_size))
 
     def forward(self,input):
         # output = torch.mul(input,self.weight)
+        # tmp_list = []
         # for i in range(output.shape[0]):
-        #     output[i] += self.bias
+        #     tmp_list.append((output[i] + self.bias).unsqueeze(0))
         #
-        # return output
+        # f_output = torch.cat(tmp_list,dim = 0)
+        #
+        # return f_output
 
-        # self.mean = torch.zeros(int(self.feature_size)).cuda()
-        # self.variance = torch.ones(int(self.feature_size)).cuda()
 
         return nn.functional.batch_norm(
             input, self.mean, self.variance, self.weight, self.bias,training = False)

@@ -6,6 +6,7 @@ import numpy
 import tensorflow as tf
 import torch.utils.data
 import os
+import numpy as np
 from tensorflow import logging
 from tensorflow import gfile
 import itertools, datetime
@@ -14,6 +15,7 @@ class yt8mDataset(torch.utils.data.Dataset):
     def __init__(self, transform=None,data_type = ''):
         super(yt8mDataset, self).__init__()
         data_dir = '/mnt/mmu/liuchang/hywData/yt8m/frame/' + data_type
+        # data_dir = '/home/hyw/y8_torch/data/' + data_type
         self.data_list = os.listdir(data_dir)
         self.range_list = []
 
@@ -32,7 +34,7 @@ class yt8mDataset(torch.utils.data.Dataset):
         self.data_type = data_type
 
     def get_range_ind(self,ind):
-        print('range ind ' + str(ind))
+        # print('index ' + str(ind))
         for i in range(len(self.range_list)):
             if ind >= self.range_list[i][0] and ind < self.range_list[i][1]:
                 return i
@@ -40,7 +42,7 @@ class yt8mDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         range_ind = self.get_range_ind(index)
-
+        # print('range ind ' + str(range_ind))
         if range_ind == -1:
             start_ind = len(self.range_list)
 
@@ -50,7 +52,7 @@ class yt8mDataset(torch.utils.data.Dataset):
 
             while range_ind == -1:
                 self.buff_input,self.buff_label = gen_rec_data(self.data_list,rec_ind=start_ind)
-                new_range = (r_start_num,self.buff_label.shape[0])
+                new_range = (r_start_num,r_start_num + self.buff_label.shape[0])
                 self.range_list.append(new_range)
                 range_ind = self.get_range_ind(index)
                 # print('range ind ' + str(range_ind))
@@ -60,16 +62,16 @@ class yt8mDataset(torch.utils.data.Dataset):
 
         local_index = index - self.range_list[range_ind][0]
         self.last_range_ind = range_ind
-        return self.buff_input[local_index],self.buff_label[local_index]
+        return '',self.buff_input[local_index],self.buff_label[local_index]
 
     def __len__(self):
 
         if self.data_type == 'train':
-            return 5000000
-        elif self.data_type == 'valid':
+            return 3888919
+        elif self.data_type == 'validate':
             return 1112356
         else:
-            return 500000
+            return 1133323
 
 def get_reader():
 
@@ -208,6 +210,8 @@ def gen_rec_data(data_list,rec_ind):
         # logging.info("%s: Starting managed session.", task_as_string(self.task))
         with sv.managed_session() as sess:
             [batch_val, label_val] = sess.run([input_batch, label_batch])
+            label_val = np.argmax(label_val, axis=1)
+            label_val = label_val.astype('int')
             batch_val = torch.from_numpy(batch_val)
             label_val = torch.from_numpy(label_val)
 
