@@ -26,14 +26,15 @@ class KsDataset(torch.utils.data.Dataset):
         # img = Image.open(root + fn).convert('RGB')
                 if self.transform is not None:
                     frames = self.transform(frames)
+                    print("before return")
                     return id,frames, label.item()
             except Exception as e:
                 print("error detected")
                 index=(index+1)%len(self.items)
 
     def __len__(self):
-        return len(self.items)
-        #return 2
+       return len(self.items)
+       # return 20
 
 
 if __name__ == "__main__":

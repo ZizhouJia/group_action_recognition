@@ -6,12 +6,17 @@ from torch.autograd import Variable
 from tensorflow.python import pywrap_tensorflow as pt
 
 def bn_action(tensor,bn):
-    tmp_list = []
-    for i in range(tensor.shape[0]):
-        tmp_batch = bn(tensor[i])
-        tmp_list.append(tmp_batch.unsqueeze(0))
-        # tensor[i] = tmp_batch
-    return torch.cat(tmp_list,dim = 0)
+    torch.mul(tensor,bn.weight)
+    f_tensor = tensor + bn.bias.view(1,1,-1)
+
+    return f_tensor
+
+    # tmp_list = []
+    # for i in range(tensor.shape[0]):
+    #     tmp_batch = bn(tensor[i])
+    #     tmp_list.append(tmp_batch.unsqueeze(0))
+    #     # tensor[i] = tmp_batch
+    # return torch.cat(tmp_list,dim = 0)
 
 class init_Module():
     def __init__(self,model_path = '/home/hyw/y8_willow/gatednetvladLF-256k-1024-80-0002-300iter-norelu-basic-gatedmoe/model.ckpt-0',print_weight = False):
@@ -54,18 +59,24 @@ class bn_layer(nn.Module):
         self.bias = create_Param((int(feature_size),),std=1/math.sqrt(feature_size))
 
     def forward(self,input):
-        # output = torch.mul(input,self.weight)
+
+        # print('bn input shape ' + str(input.shape))
+        # print('weight shape ' + str(self.weight.shape))
+
+        output = torch.mul(input,self.weight)
+        f_output = output+self.bias.view(1,-1)
+
         # tmp_list = []
         # for i in range(output.shape[0]):
         #     tmp_list.append((output[i] + self.bias).unsqueeze(0))
         #
         # f_output = torch.cat(tmp_list,dim = 0)
-        #
-        # return f_output
+
+        return f_output
 
 
-        return nn.functional.batch_norm(
-            input, self.mean, self.variance, self.weight, self.bias,training = False)
+        # return nn.functional.batch_norm(
+        #     input, self.mean, self.variance, self.weight, self.bias,training = False)
 
     # def cuda(self):
     #     super(bn_layer, self).cuda()

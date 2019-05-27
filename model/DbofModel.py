@@ -18,7 +18,8 @@ class DbofModel(nn.Module):
                    cluster_size=8192,
                    hidden_size=1024,
                    is_training=True,
-                   feature_size = 1024 + 128,
+                   video_size = 1024,
+                   audio_size = 128,
                    pretrain = True,
                    use_moe=False,
                    **unused_params):
@@ -28,7 +29,9 @@ class DbofModel(nn.Module):
         self.add_batch_norm = add_batch_norm or opt.dbof_add_batch_norm
         self.random_frames = sample_random_frames or opt.sample_random_frames
         self.cluster_size = cluster_size or opt.dbof_cluster_size
-        self.feature_size = feature_size
+        self.feature_size = audio_size + video_size
+        self.video_size = video_size
+        self.audio_size = audio_size
         self.hidden1_size = hidden_size or opt.dbof_hidden_size
         self.add_batch_norm = add_batch_norm
 
@@ -40,8 +43,11 @@ class DbofModel(nn.Module):
         else:
             self.init_module = None
 
+        print('pretrain ' + str(pretrain))
+        print('feature size ' + str(self.feature_size))
+
         if add_batch_norm:
-            self.input_bn = bn_layer(feature_size)
+            self.input_bn = bn_layer(self.feature_size)
             if type(self.init_module) != type(None):
                 self.init_module.init_bn(bn=self.input_bn,bn_name='tower/input_bn')
 
@@ -105,3 +111,10 @@ class DbofModel(nn.Module):
         prob = self.c_layer(activations)
 
         return prob
+
+# if __name__ == '__main__':
+#     s = torch.Tensor(3,300,1024)
+#     s = s.cuda()
+#     model = DbofModel()
+#     model = model.cuda()
+#     t = model(s)

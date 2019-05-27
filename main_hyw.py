@@ -12,6 +12,7 @@ import numpy as np
 import copy
 import model_utils.dataset as dl
 import multiprocessing
+import torch
 
 video_t=transforms.Compose([
                 video_transforms.center_crop(),
@@ -19,6 +20,11 @@ video_t=transforms.Compose([
                 video_transforms.to_tensor(),
                 video_transforms.normalize()
             ])
+
+use_pca = False
+all_saved = True
+with_model = False
+use_yt8m = False
 
 def generate_frames_dataset(batch_size=1):
     ks=dataset.ks_dataset.KsDataset(transform=video_t)
@@ -54,11 +60,54 @@ def generate_yt8m_dataset(batch_size):
     return train_loader,valid_loader,test_loader
 
 def generate_kuaishou_dataset(batch_size):
-    train_dataset=dataset.feature_dataset.feature_dataset(data_type="train")
-    valid_dataset=dataset.feature_dataset.feature_dataset(data_type="valid")
-    test_dataset=dataset.feature_dataset.feature_dataset(data_type="test")
+    # train_dataset=dataset.feature_dataset.feature_dataset(data_type="train")
+    # valid_dataset=dataset.feature_dataset.feature_dataset(data_type="valid")
+    # test_dataset=dataset.feature_dataset.feature_dataset(data_type="test")
+    # ex_model = model.inception_v3.inception_v3(pca_dir='/mnt/mmu/liuchang/youtube8_torch/yt8m_pca')
+
+    if use_pca:
+        pca_dir = '/mnt/mmu/liuchang/youtube8_torch/yt8m_pca'
+    else:
+        pca_dir = None
+
+    device_ind = 0
+    cuda_device = torch.device('cuda:'+ str(device_ind))
+    if with_model:
+        ex_model = model.inception_v3.inception_v3(pca_dir=pca_dir)
+        ex_model = ex_model.cuda(cuda_device)
+    else:
+        ex_model = None
+
+    if type(pca_dir) == type(None):
+        a_zero_feature = False
+    else:
+        a_zero_feature = True
+
+    # train_dataset = dataset.end2end_dataset.end2end_dataset(data_type="train", ex_model=ex_model,cuda_device=cuda_device)
+    train_dataset=dataset.end2end_dataset.end2end_dataset(data_type="train",ex_model=ex_model,device_ind = device_ind,with_yt8m = use_yt8m,
+                                                          pca_dir = pca_dir,a_zero_feature=a_zero_feature,all_saved=all_saved)
+    print('train dataset')
+
+    device_ind = 1
+    cuda_device = torch.device('cuda:' + str(device_ind))
+    if with_model:
+        ex_model = model.inception_v3.inception_v3(pca_dir=pca_dir)
+        ex_model = ex_model.cuda(cuda_device)
+    else:
+        ex_model = None
+
+    # valid_dataset = dataset.end2end_dataset.end2end_dataset(data_type="valid", ex_model=ex_model,cuda_device=cuda_device)
+    valid_dataset=dataset.end2end_dataset.end2end_dataset(data_type="valid",ex_model=ex_model,device_ind = device_ind,with_yt8m = use_yt8m,
+                                                          pca_dir = pca_dir,a_zero_feature=a_zero_feature,all_saved=all_saved)
+    print('valid dataset')
+    # test_dataset = dataset.end2end_dataset.end2end_dataset(data_type="test", ex_model=ex_model,cuda_device=cuda_device)
+    test_dataset = dataset.end2end_dataset.end2end_dataset(data_type="valid", ex_model=ex_model,device_ind = device_ind,
+                                                           pca_dir=pca_dir,a_zero_feature=a_zero_feature,all_saved = all_saved)
+    print('test dataset')
+
+    # test_dataset=dataset.end2end_dataset.end2end_dataset(data_type="test",ex_model=ex_model,pca_dir = '/mnt/mmu/liuchang/youtube8_torch/yt8m_pca')
     train_loader=Data.DataLoader(train_dataset,batch_size=batch_size,shuffle=True,num_workers=0)
-    valid_loader=Data.DataLoader(valid_dataset,batch_size=batch_size,shuffle=False,num_workers=0)
+    valid_loader=Data.DataLoader(valid_dataset,batch_size=batch_size,shuffle=True,num_workers=0)
     test_loader=Data.DataLoader(test_dataset,batch_size=batch_size,shuffle=False,num_workers=0)
     return train_loader,valid_loader,test_loader
 
@@ -71,24 +120,28 @@ tasks=[]
 
 config=model_utils.config.common_solver_config()
 
-config["epochs"]=200
+config["epochs"]=1000
 # config["dataset_function"]=generate_yt8m_dataset
 config["dataset_function"]=generate_kuaishou_dataset
-config["dataset_function_params"]={"batch_size":32}
+# config["dataset_function_params"]={"batch_size":32}
 config["learning_rate_decay_iteration"]=4000000
-config["dataset_function_params"]={"batch_size":160}
+config["dataset_function_params"]={"batch_size":50}
 config["model_class"]=[model.DbofModel.DbofModel]
 # config["model_class"]=[model.NetVLADModel.NetVLADModelLF]
 # config["model_class"]=[model.NetFVModel.NetFVModellLF]
 # config["model_params"]=[{"vocab_size":3862,"pretrain":True}]
-config["model_params"]=[{"vocab_size":3,"pretrain":True,"with_moe":True}]
+if not use_pca:
+    config["model_params"]=[{"vocab_size":3,"pretrain":False,"video_size":2048,"audio_size":0}]
+else:
+    config["model_params"]=[{"vocab_size":3,"pretrain":False,"video_size":1024,"audio_size":128}]
 config["optimizer_function"]=optimizer.generate_optimizers
-config["optimizer_params"]={"lrs":[0.0002],"optimizer_type":"adam","weight_decay":1.0}
+config["optimizer_params"]={"lrs":[0.0002],"optimizer_type":"adam","weight_decay":0}
 # config["optimizer_params"]={"lrs":[10],"optimizer_type":"adam","weight_decay":1.0}
 # config["optimizer_params"]={"lrs":[0.2],"optimizer_type":"adam","weight_decay":1.0}
-config["task_name"]="NetVLADModel_baseline"
+config["task_name"]="DobofModel_baseline_yt8m"
 # config["mem_use"]=[10000,10000,10000,10000,10000,10000,10000,10000]
-config["mem_use"]=[3000,3000,3000,3000,3000,3000,3000,3000]
+config["mem_use"]=[1,1]
+config["device_use"]=[6,7]
 config["grad_plenty"]=1.0
 config["distilling_mode"]=False
 test_task={

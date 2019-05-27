@@ -6,4 +6,14 @@ pca_matrix/*
 */__pycache__
 checkpoints/*
 *.zip
-
+train_paths/*
+train_paths2048/*
+valid_path/*
+valid_paths2048/*
+*.txt
+*.out
+.nohup.out.*
+.main_hwy*
+.*
+core*
+*.ckpt

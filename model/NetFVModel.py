@@ -110,7 +110,8 @@ class NetFV(nn.Module):
 class NetFVModellLF(nn.Module):
     def __init__(self,
                  opt = None,
-                 feature_size = 1024 + 128,
+                 video_size = 1024,
+                 audio_size = 128,
                  vocab_size = 3862,
                  num_frames = 300,
                  iterations=100,
@@ -119,7 +120,7 @@ class NetFVModellLF(nn.Module):
                  cluster_size=64,
                  hidden_size=2048,
                  is_training=True,
-                 pretrain = True,
+                 pretrain = False,
                  **unused_params):
         super(NetFVModellLF,self).__init__()
 
@@ -128,7 +129,9 @@ class NetFVModellLF(nn.Module):
         self.random_frames = sample_random_frames or opt.sample_random_frames
         self.cluster_size = cluster_size or opt.fv_cluster_size
         self.hidden1_size = hidden_size or opt.fv_hidden_size
-        self.feature_size = feature_size
+        self.feature_size = video_size + audio_size
+        self.video_size = video_size
+        self.audio_size = audio_size
 
         if pretrain:
             self.init_module = init_Module(model_path='/mnt/mmu/liuchang/y8_tf/trained_models/NetFV/model.ckpt-244087',
@@ -151,10 +154,10 @@ class NetFVModellLF(nn.Module):
             if type(self.init_module) != type(None):
                 self.init_module.init_bn(bn=self.input_bn, bn_name='tower/input_bn')
 
-        self.video_NetFV = NetFV(opt,1024, self.max_frames, cluster_size, add_batch_norm, is_training,init_module=self.init_module,net_type='tower/video_FV/')
-        self.audio_NetFV = NetFV(opt,128, self.max_frames, cluster_size / 2, add_batch_norm, is_training,init_module=self.init_module,net_type='tower/audio_FV/')
+        self.video_NetFV = NetFV(opt,video_size, self.max_frames, cluster_size, add_batch_norm, is_training,init_module=self.init_module,net_type='tower/video_FV/')
+        self.audio_NetFV = NetFV(opt,audio_size, self.max_frames, cluster_size / 2, add_batch_norm, is_training,init_module=self.init_module,net_type='tower/audio_FV/')
 
-        self.fv_dim = cluster_size * 1024 + cluster_size // 2 * 128
+        self.fv_dim = cluster_size * video_size + cluster_size // 2 * audio_size
         self.fv_dim = self.fv_dim * 2
 
 
@@ -192,8 +195,8 @@ class NetFVModellLF(nn.Module):
     def forward(self, reshaped_input):
         reshaped_input = bn_action(reshaped_input,self.input_bn)
 
-        fv_video = self.video_NetFV(reshaped_input[:,:,0:1024])
-        fv_audio = self.audio_NetFV(reshaped_input[:,:,1024:])
+        fv_video = self.video_NetFV(reshaped_input[:,:,0:self.video_size])
+        fv_audio = self.audio_NetFV(reshaped_input[:,:,self.video_size:])
 
         fv = torch.cat([fv_video,fv_audio],dim = 2)
 

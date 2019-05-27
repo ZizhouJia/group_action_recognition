@@ -12,6 +12,7 @@ import numpy as np
 import copy
 import model_utils.dataset as dl
 import multiprocessing
+import torch
 
 video_t=transforms.Compose([
                 video_transforms.center_crop(),
@@ -22,7 +23,8 @@ video_t=transforms.Compose([
 
 def generate_frames_dataset(batch_size=1):
     ks=dataset.ks_dataset.KsDataset(transform=video_t)
-    dataloader=dl.BufferDataLoader(ks,batch_size=batch_size,shuffle=False,num_workers=64,buffer_size=100)
+    dataloader=dl.BufferDataLoader(ks,batch_size=batch_size,shuffle=False,num_workers=32,buffer_size=100)
+   # dataloader=Data.DataLoader(ks,batch_size=1,shuffle=False)
     return dataloader
 
 def generate_feature_dataset(batch_size,path):
@@ -63,7 +65,14 @@ def generate_kuaishou_dataset(batch_size):
     return train_loader,valid_loader,test_loader
 
     
-
+def generate_optimizer(models,base_lr,fc_lr,weight_decay):
+    fc_params=list(map(id,models[0].module.c_layer.parameters()))
+    base_params=filter(lambda p:id(p) not in fc_params,models[0].module.parameters())
+    optimizer=torch.optim.Adam([
+            {"params":base_params,"lr":base_lr},
+            {"params":models[0].module.c_layer.parameters(),"lr":fc_lr}
+            ],lr=base_lr,weight_decay=weight_decay)
+    return [optimizer]
 
 r=runner.runner()
 
@@ -73,13 +82,12 @@ config=model_utils.config.common_solver_config()
 
 config["epochs"]=200
 config["dataset_function"]=generate_kuaishou_dataset
-config["dataset_function_params"]={"batch_size":32}
 config["learning_rate_decay_iteration"]=4000000
-config["dataset_function_params"]={"batch_size":160}
-config["model_class"]=[model.NetVLADModel.NetVLADModelLF]
-config["model_params"]=[{"vocab_size":3}]
-config["optimizer_function"]=optimizer.generate_optimizers
-config["optimizer_params"]={"lrs":[0.0002],"optimizer_type":"adam","weight_decay":1.0}
+config["dataset_function_params"]={"batch_size":32}
+config["model_class"]=[model.DbofModel.DbofModel]
+config["model_params"]=[{"vocab_size":3,"pretrain":True}]
+config["optimizer_function"]=generate_optimizer
+config["optimizer_params"]={"base_lr":0.000000,"fc_lr":0.0002,"weight_decay":0.0}
 config["task_name"]="NetVLADModel_baseline"
 config["mem_use"]=[10000,10000,10000,10000]
 config["grad_plenty"]=1.0
@@ -97,7 +105,8 @@ config["mem_use"]=[10000,10000,10000,10000,10000,10000,10000,10000]
 config["summary_writer_open"]=False
 config["dataset_function"]=generate_frames_dataset
 config["dataset_function_params"]={"batch_size":1}
-config["save_path"]="kuaishou_feature.h5"
+config["save_path_2048"]="kuaishou_feature2048.h5"
+config["save_path_1024"]="kuaishou_feature.h5"
 config["pca_save_path"]="./pca_matrix/kuaishou"
 config["model_path"]=None
 config["split_times"]=1

@@ -6,7 +6,7 @@ import numpy as np
 import random
 
 class feature_dataset(Data.Dataset):
-    def __init__(self,frame_path ='/mnt/mmu/liuchang/kuaishou_feature.h5',data_type = 'train'):
+    def __init__(self,frame_path ='/mnt/mmu/liuchang/group_action_recognition/kuaishou_feature.h5',data_type = 'train'):
         data = h5.File(frame_path,'r')
         # print('read_finish!')
         self.frames = np.array(data['feature']).reshape((-1,300,1024))

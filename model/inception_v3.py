@@ -3,15 +3,18 @@ import torch.nn as nn
 import numpy as np
 import os
 import torch.nn.functional as F
+import torch
 
 class inception_v3(nn.Module):
-    def __init__(self,pca_dir="./pca_matrix/yt8m_pca"):
+    def __init__(self,pca_dir="./pca_matrix/yt8m_pca",device_ind  =0):
         super(inception_v3,self).__init__()
         self.base=models.inception_v3(pretrained=True)
+        self.cuda_device = torch.device('cuda:' + str(device_ind))
         self.pca_dir=pca_dir
         if(self.pca_dir is not None):
             self._load_pca()
-        print(self.base)
+        # print(self.base)
+        print('inception establish ')
 
     def forward(self,x):
         x = self.base.Conv2d_1a_3x3(x)
@@ -34,6 +37,8 @@ class inception_v3(nn.Module):
         x = self.base.Mixed_7c(x)
         x = F.adaptive_avg_pool2d(x, (1, 1))
         if(self.pca_dir is not None):
+            x = x.squeeze(-1)
+            x = x.squeeze(-1)
             x=x-self.pca_mean
             x=x.mm(self.pca_eigenvecs)
             x=x/torch.sqrt(1e-8+self.pca_eigenvals)
@@ -42,10 +47,11 @@ class inception_v3(nn.Module):
     def _load_pca(self):
         self.pca_mean = np.load(
             os.path.join(self.pca_dir, 'mean.npy'))[:, 0]
-        self.pca_mean=torch.Tensor(self.pca_mean).float().cuda().view(1,-1)
+        self.pca_mean=torch.Tensor(self.pca_mean).float().cuda(self.cuda_device).view(1,-1)
         self.pca_eigenvals = np.load(
             os.path.join(self.pca_dir, 'eigenvals.npy'))[:1024, 0]
-        self.pca_eigenvals=torch.Tensor(self.pca_eigenvals).float().cuda().view(1,-1)
+        self.pca_eigenvals=torch.Tensor(self.pca_eigenvals).float().cuda(self.cuda_device).view(1,-1)
         self.pca_eigenvecs = np.load(
             os.path.join(self.pca_dir, 'eigenvecs.npy')).T[:, :1024]
-        self.pca_eigenvecs=torch.Tensor(self.pca_eigenvecs).float().cuda().view(2048,1024)
+        self.pca_eigenvecs=torch.Tensor(self.pca_eigenvecs).float().cuda(self.cuda_device).view(2048,1024)
+

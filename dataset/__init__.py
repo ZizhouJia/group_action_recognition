@@ -1,3 +1,5 @@
 import dataset.ks_dataset
 import dataset.feature_dataset
+import dataset.split_feature_dataset
 import dataset.yt8m_dataset
+import dataset.end2end_dataset
