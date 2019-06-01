@@ -155,7 +155,8 @@ class NetFVModellLF(nn.Module):
                 self.init_module.init_bn(bn=self.input_bn, bn_name='tower/input_bn')
 
         self.video_NetFV = NetFV(opt,video_size, self.max_frames, cluster_size, add_batch_norm, is_training,init_module=self.init_module,net_type='tower/video_FV/')
-        self.audio_NetFV = NetFV(opt,audio_size, self.max_frames, cluster_size / 2, add_batch_norm, is_training,init_module=self.init_module,net_type='tower/audio_FV/')
+        if self.audio_size > 0:
+            self.audio_NetFV = NetFV(opt,audio_size, self.max_frames, cluster_size / 2, add_batch_norm, is_training,init_module=self.init_module,net_type='tower/audio_FV/')
 
         self.fv_dim = cluster_size * video_size + cluster_size // 2 * audio_size
         self.fv_dim = self.fv_dim * 2
@@ -196,9 +197,12 @@ class NetFVModellLF(nn.Module):
         reshaped_input = bn_action(reshaped_input,self.input_bn)
 
         fv_video = self.video_NetFV(reshaped_input[:,:,0:self.video_size])
-        fv_audio = self.audio_NetFV(reshaped_input[:,:,self.video_size:])
 
-        fv = torch.cat([fv_video,fv_audio],dim = 2)
+        if self.audio_size > 0:
+            fv_audio = self.audio_NetFV(reshaped_input[:,:,self.video_size:])
+            fv = torch.cat([fv_video,fv_audio],dim = 2)
+        else:
+            fv = fv_video
 
         activaiton = torch.matmul(fv,self.hidden1_weights)
 
